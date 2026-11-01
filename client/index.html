@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+<title>Blobs</title>
+<style>
+  :root {
+    --bg: #eaf3f7;
+    --panel: rgba(255, 255, 255, 0.92);
+    --text: #1d2b34;
+    --muted: #5d7280;
+    --accent: #2f9e6f;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --panel: rgba(28, 38, 45, 0.92); --text: #e8f0f4; --muted: #93a8b5; }
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; overflow: hidden; background: var(--bg);
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif; color: var(--text); }
+  canvas { position: fixed; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; }
+
+  .panel { background: var(--panel); border-radius: 12px; box-shadow: 0 2px 14px rgba(0, 0, 0, 0.18); }
+
+  #menu { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center;
+    background: rgba(0, 0, 0, 0.28); padding: 16px; }
+  #menu.hidden { display: none; }
+  #menu .panel { width: min(360px, 100%); padding: 24px; text-align: center; }
+  #menu h1 { margin: 0 0 4px; font-size: 28px; }
+  #menu p { margin: 0 0 16px; color: var(--muted); min-height: 1.3em; }
+  #name { width: 100%; padding: 12px; font-size: 16px; border-radius: 8px; border: 1px solid #9db0bb;
+    background: transparent; color: inherit; margin-bottom: 12px; text-align: center; }
+  #play { width: 100%; padding: 12px; font-size: 16px; font-weight: 600; border: 0; border-radius: 8px;
+    background: var(--accent); color: #fff; cursor: pointer; }
+  #play:disabled { opacity: 0.5; cursor: default; }
+  #hint { margin-top: 14px; font-size: 13px; color: var(--muted); }
+
+  #score { position: fixed; left: 12px; bottom: 12px; padding: 8px 14px; font-weight: 600; }
+  #board { position: fixed; right: 12px; top: 12px; padding: 10px 14px; min-width: 170px; font-size: 14px; }
+  #board h2 { margin: 0 0 6px; font-size: 14px; text-align: center; }
+  #board ol { margin: 0; padding-left: 22px; }
+  #board li { display: flex; justify-content: space-between; gap: 12px; white-space: nowrap; }
+  #board li span:first-child { overflow: hidden; text-overflow: ellipsis; max-width: 110px; }
+  #board li.me { font-weight: 700; color: var(--accent); }
+  .hud.hidden { display: none; }
+
+  #buttons { position: fixed; right: 12px; bottom: 12px; display: none; gap: 10px; }
+  #buttons button { width: 64px; height: 64px; border-radius: 50%; border: 0; font-size: 13px; font-weight: 700;
+    background: var(--panel); color: var(--text); box-shadow: 0 2px 10px rgba(0, 0, 0, 0.25); touch-action: none; }
+  @media (pointer: coarse) { #buttons:not(.hidden) { display: flex; } }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<div id="score" class="panel hud hidden">Mass: <span id="mass">0</span></div>
+<div id="board" class="panel hud hidden"><h2>Leaderboard</h2><ol id="lb"></ol></div>
+
+<div id="buttons" class="hud hidden">
+  <button id="btn-eject">Eject</button>
+  <button id="btn-split">Split</button>
+</div>
+
+<div id="menu">
+  <div class="panel">
+    <h1 id="title">Blobs</h1>
+    <p id="status">Connecting…</p>
+    <input id="name" maxlength="16" placeholder="Your name" autocomplete="off">
+    <button id="play" disabled>Play</button>
+    <div id="hint">Move the mouse to steer. Eat food and smaller blobs, avoid bigger ones.<br>
+      <b>Space</b> splits, <b>W</b> ejects mass. Green spiky viruses burst big blobs into pieces.</div>
+  </div>
+</div>
+
+<script src="protocol.js"></script>
+<script src="game.js"></script>
+</body>
+</html>
