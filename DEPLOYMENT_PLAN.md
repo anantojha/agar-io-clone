@@ -1,4 +1,4 @@
-# Phase 5: free deployment plan
+# Phase 5: Free deployment plan
 
 Written 2026-10-30. **Status: plan only. Nothing has been deployed or published.**
 
