@@ -1,0 +1,16 @@
+# Only used if Step A picks Render. Copy to the repo root as render.yaml.
+# Replace YOUR-GITHUB-USER; the origin is the Pages site, with no path.
+services:
+  - type: web
+    name: agar-clone
+    runtime: docker
+    plan: free
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      - key: AGAR_TRUST_PROXY
+        value: "1"
+      - key: AGAR_ALLOWED_ORIGINS
+        value: https://anant-ojha.github.io
+      - key: AGAR_MAX_PLAYERS
+        value: "12"
