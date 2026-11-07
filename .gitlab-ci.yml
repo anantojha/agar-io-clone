@@ -1,0 +1,38 @@
+
+# GitLab CI for the Blobs game: run pytest on every push, publish client/ to GitLab Pages.
+#
+# To point the Pages copy at the game server, add a CI/CD variable named AGAR_SERVER_URL
+# (Settings > CI/CD > Variables), for example wss://your-app.onrender.com/ws. Until it is set the
+# page looks for a server on its own host and will not find one.
+ 
+stages:
+  - test
+  - deploy
+ 
+default:
+  image: python:3.12-slim
+ 
+variables:
+  PIP_CACHE_DIR: "$CI_PROJECT_DIR/.cache/pip"
+ 
+cache:
+  key:
+    files:
+      - requirements.txt
+      - requirements-dev.txt
+  paths:
+    - .cache/pip
+ 
+pytest:
+  stage: test
+  before_script:
+    # node lets the test that runs client/protocol.js against the server's frames run
+    # instead of being skipped.
+    - apt-get update -qq && apt-get install -y -qq --no-install-recommends nodejs
+    - pip install -r requirements-dev.txt
+  script:
+    # "python -m" puts the repo root on sys.path so `import game` and `import server` work.
+    - python -m pytest -q
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "push" || $CI_PIPELINE_SOURCE == "merge_request_event"
+ 
