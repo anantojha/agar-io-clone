@@ -1,0 +1,44 @@
+name: pages
+
+# Publishes client/ to GitHub Pages. Set the repository variable AGAR_SERVER_URL
+# (Settings > Secrets and variables > Actions > Variables) to the game server's wss:// address,
+# for example wss://your-app.onrender.com/ws. Until it is set, the page looks for a server on
+# its own host and will not find one.
+
+on:
+  push:
+    branches: [main]
+    paths: ["client/**", ".github/workflows/pages.yml"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Point the client at the game server
+        env:
+          SERVER_URL: ${{ vars.AGAR_SERVER_URL }}
+        run: |
+          if [ -n "$SERVER_URL" ]; then
+            value=$(python3 -c 'import json,os; print(json.dumps(os.environ["SERVER_URL"]))')
+            printf 'window.AGAR_CONFIG = { server: %s };\n' "$value" > client/config.js
+          fi
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: client
+      - id: deployment
+        uses: actions/deploy-pages@v4
