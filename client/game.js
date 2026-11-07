@@ -4,10 +4,25 @@
   const ctx = canvas.getContext("2d");
   const $ = (id) => document.getElementById(id);
 
-  // Same origin by default; ?server=wss://host/ws points the page at another game server.
-  const params = new URLSearchParams(location.search);
-  const WS_URL = params.get("server") ||
+  // config.js names the game server. Empty means the host that served this page.
+  const configured = ((window.AGAR_CONFIG || {}).server || "").trim();
+  const WS_URL = configured ||
     `${location.protocol === "https:" ? "wss" : "ws"}://${location.host}/ws`;
+
+  // A free host sleeps when idle. Until the first connection works, knock on /health to wake it
+  // and retry the WebSocket for about this long before giving up.
+  const WAKE_DEADLINE_MS = 90000;
+  const RETRY_MIN_MS = 1000;
+  const RETRY_MAX_MS = 5000;
+
+  function healthUrl() {
+    const u = new URL(WS_URL, location.href);
+    u.protocol = u.protocol === "wss:" ? "https:" : "http:";
+    u.pathname = "/health";
+    u.search = "";
+    u.hash = "";
+    return u.toString();
+  }
 
   let foodRadius = 6; // the server sends the real radii in its welcome message
   let pelletRadius = 20.8;
@@ -31,6 +46,9 @@
   const mouse = { x: innerWidth / 2, y: innerHeight / 2 };
   let camReady = false;
   let refused = false; // the server turned this connection away
+  let everOpened = false; // a WebSocket has connected at least once
+  let wakeStart = 0; // when we first tried to connect
+  let retryDelay = RETRY_MIN_MS;
   let snapInterval = 66; // ms between state frames, from the welcome message then measured
   let lastStateAt = 0;
 
@@ -81,9 +99,11 @@
   // --- network -------------------------------------------------------
 
   function connect() {
+    if (!wakeStart) wakeStart = performance.now();
     ws = new WebSocket(WS_URL);
     ws.binaryType = "arraybuffer";
     ws.onopen = () => {
+      everOpened = true;
       $("status").textContent = "Ready";
       $("play").disabled = false;
     };
@@ -95,11 +115,30 @@
     ws.onclose = () => {
       playing = false;
       if (refused) return; // keep the "server full" message on screen
+      if (!everOpened) { retryConnect(); return; }
       showMenu("Disconnected", "Lost the connection to the server.");
       $("play").textContent = "Reconnect";
       $("play").disabled = false;
       $("play").onclick = () => location.reload();
     };
+  }
+
+  // The server may be asleep. Wake it with a plain request (no-cors, so we never read the reply),
+  // then try the WebSocket again with a growing pause, until the deadline.
+  function retryConnect() {
+    const waited = performance.now() - wakeStart;
+    if (waited >= WAKE_DEADLINE_MS) {
+      showMenu("Can't reach the server", "It may be down. Try again in a minute.");
+      $("play").textContent = "Try again";
+      $("play").disabled = false;
+      $("play").onclick = () => location.reload();
+      return;
+    }
+    $("status").textContent = `Waking the server… ${Math.round(waited / 1000)}s (can take a minute)`;
+    $("play").disabled = true;
+    try { fetch(healthUrl(), { mode: "no-cors", cache: "no-store" }).catch(() => {}); } catch (e) { /* ignore */ }
+    setTimeout(connect, retryDelay);
+    retryDelay = Math.min(retryDelay + 1000, RETRY_MAX_MS);
   }
 
   function handle(msg) {
@@ -189,6 +228,13 @@
     lastSent = { x, y, at: now };
     ws.send(JSON.stringify({ t: "move", x, y }));
   }, SEND_INTERVAL_MS);
+
+  // The server closes connections that stay silent for 30 seconds, and at the menu nothing else
+  // is sent (moves only go out while playing). A small ping every 10 seconds keeps us connected.
+  // The server ignores message types it doesn't know, so no server change is needed.
+  setInterval(() => {
+    if (!playing && ws && ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ t: "ping" }));
+  }, 10000);
 
   function act(kind) {
     if (playing && ws && ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ t: kind }));
